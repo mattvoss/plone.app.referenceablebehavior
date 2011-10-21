@@ -4,6 +4,7 @@ from plone.app.referenceablebehavior.referenceable import IReferenceable
 from plone.uuid.interfaces import IUUID
 from plone.indexer.decorator import indexer
 from zope.app.component.hooks import getSite
+import logging
 
 
 @indexer(IReferenceable, IUIDCatalog)
@@ -15,21 +16,36 @@ def _get_catalog(obj):
         return getToolByName(obj, 'uid_catalog')
     except AttributeError:
         return getToolByName(getSite(), 'uid_catalog')
+        
+def get_rel_path(obj):
+    urlTool = getToolByName(getSite(), 'portal_url')
+    portal_path = urlTool.getPortalObject().getPhysicalPath()
+    portal_path_len = len(portal_path)
+
+    rel_path = obj.getPhysicalPath()[portal_path_len:]
+    
+    return rel_path
 
 def added_handler(obj, event):
     """Index the object inside uid_catalog"""
     uid_catalog = _get_catalog(obj)
-    path = '/'.join(obj.getPhysicalPath())
-    uid_catalog.catalog_object(obj, path)
+    path = get_rel_path(obj)
+    uid = '/'.join(path)
+
+    uid_catalog.catalog_object(obj, uid)
 
 def modified_handler(obj, event):
     """Reindex object in uid_catalog"""
     uid_catalog = _get_catalog(obj)
-    path = '/'.join(obj.getPhysicalPath())
-    uid_catalog.catalog_object(obj, path)
+    path = get_rel_path(obj)
+    uid = '/'.join(path)
+
+    uid_catalog.catalog_object(obj, uid)
 
 def removed_handler(obj, event):
     """Remove object from uid_catalog"""
     uid_catalog = _get_catalog(obj)
-    path = '/'.join(obj.getPhysicalPath())
-    uid_catalog.uncatalog_object(path)
+    path = get_rel_path(obj)
+    uid = '/'.join(path)
+
+    uid_catalog.uncatalog_object(uid)
